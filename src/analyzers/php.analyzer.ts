@@ -125,6 +125,22 @@ const PHP_PATTERNS: PHPPattern[] = [
     pattern: /\b(include|require|include_once|require_once)\s*\(/g,
   },
 
+  // HIGH: Prompt Injection / LLM API Usage
+  {
+    name: 'OpenAI API',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'OpenAI API usage - potential prompt injection if using untrusted input',
+    pattern: /OpenAI\\|createChatCompletion|createCompletion/g,
+  },
+  {
+    name: 'LLM API generic',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'Generic LLM API call - potential prompt injection if using untrusted input',
+    pattern: /(generateText|generateContent|sendMessage|promptModel|llmInference)/g,
+  },
+
   // MEDIUM: Network Access & SQL
   {
     name: 'curl_exec',
@@ -176,6 +192,161 @@ const PHP_PATTERNS: PHPPattern[] = [
     category: 'Environment Access',
     description: 'Accesses environment variables - potential sensitive data exposure',
     pattern: /\bgetenv\s*\(/g,
+  },
+
+  // ===== CREDENTIAL THEFT PATTERNS =====
+  
+  {
+    name: 'Hardcoded Secret',
+    severity: 'critical',
+    category: 'Credential Theft',
+    description: 'Hardcoded API key or password detected',
+    pattern: /(?:api_key|api_secret|password|secret_key|auth_token|access_token)\s*=\s*['"][^'"]{8,}['"]/gi,
+  },
+  {
+    name: 'SSH Key Access',
+    severity: 'high',
+    category: 'Credential Theft',
+    description: 'Accesses SSH keys - potential credential theft',
+    pattern: /file_get_contents\s*\([^)]*(?:\.ssh|id_rsa|id_ed25519)/gi,
+  },
+  {
+    name: 'Config File Access',
+    severity: 'medium',
+    category: 'Credential Theft',
+    description: 'Accesses configuration files',
+    pattern: /(?:file_get_contents|include|require)\s*\([^)]*(?:\.env|config\.php|credentials|secrets)/gi,
+  },
+  {
+    name: 'Database Credentials',
+    severity: 'high',
+    category: 'Credential Theft',
+    description: 'Database credentials in code',
+    pattern: /\$(?:db_pass|db_password|mysql_password|pdo_password)\s*=/gi,
+  },
+
+  // ===== CODE INJECTION PATTERNS =====
+  
+  {
+    name: 'Twig Injection',
+    severity: 'critical',
+    category: 'Code Injection',
+    description: 'Twig template injection risk',
+    pattern: /\$twig->render|Environment\s*\(|createTemplate/gi,
+  },
+  {
+    name: 'Variable Variables',
+    severity: 'high',
+    category: 'Code Injection',
+    description: 'Variable variables - potential injection',
+    pattern: /\$\$\w+|\$\{\$/g,
+  },
+  {
+    name: 'extract',
+    severity: 'high',
+    category: 'Code Injection',
+    description: 'Extract function - overwrite variables',
+    pattern: /\bextract\s*\(/g,
+  },
+  {
+    name: 'SQL Injection',
+    severity: 'critical',
+    category: 'Code Injection',
+    description: 'Potential SQL injection - use prepared statements',
+    pattern: /\$(?:sql|query)\s*=\s*['""][^'"]*\.\s*\$/gi,
+  },
+
+  // ===== PROMPT MANIPULATION PATTERNS =====
+  
+  {
+    name: 'String Interpolation Prompt',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'Variable in prompt string - potential injection',
+    pattern: /\$(?:prompt|message|system_prompt)\s*=\s*"[^"]*\$/gi,
+  },
+  {
+    name: 'Prompt Concatenation',
+    severity: 'medium',
+    category: 'Prompt Injection',
+    description: 'String concatenation in prompt - validate input',
+    pattern: /(?:prompt|message)\s*\.=\s*|\.\s*\$(?:user_input|input)/gi,
+  },
+
+  // ===== DATA EXFILTRATION PATTERNS =====
+  
+  {
+    name: 'DNS Lookup',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'DNS resolution - potential exfiltration',
+    pattern: /\bgethostbyname\s*\(|\bdns_get_record\s*\(/gi,
+  },
+  {
+    name: 'Email Send',
+    severity: 'medium',
+    category: 'Data Exfiltration',
+    description: 'Email sending - potential exfiltration',
+    pattern: /\bmail\s*\(|PHPMailer|SwiftMailer/gi,
+  },
+  {
+    name: 'FTP Upload',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'FTP operations - potential exfiltration',
+    pattern: /\bftp_(?:put|fput|connect)\s*\(/gi,
+  },
+  {
+    name: 'Copy to Remote',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'File copy - potential exfiltration',
+    pattern: /\bcopy\s*\([^)]*(?:ftp|http|https):/gi,
+  },
+
+  // ===== EVASION TECHNIQUE PATTERNS =====
+  
+  {
+    name: 'Base64 Eval',
+    severity: 'critical',
+    category: 'Evasion Technique',
+    description: 'Base64 decode with eval - obfuscation',
+    pattern: /eval\s*\(\s*base64_decode|base64_decode.*eval/gi,
+  },
+  {
+    name: 'Gzinflate Eval',
+    severity: 'critical',
+    category: 'Evasion Technique',
+    description: 'Compressed code execution - obfuscation',
+    pattern: /eval\s*\(\s*gzinflate|gzinflate.*eval/gi,
+  },
+  {
+    name: 'Hex Escape',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Hex string obfuscation',
+    pattern: /\\x[0-9a-f]{2}\\x[0-9a-f]{2}\\x[0-9a-f]{2}/gi,
+  },
+  {
+    name: 'Chr Obfuscation',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'chr() based string obfuscation',
+    pattern: /chr\s*\(\s*\d+\s*\)\s*\.\s*chr\s*\(\s*\d+/gi,
+  },
+  {
+    name: 'Rot13',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Rot13 encoding - potential obfuscation',
+    pattern: /str_rot13\s*\(/gi,
+  },
+  {
+    name: 'Disable Functions',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Attempts to bypass disabled functions',
+    pattern: /ini_set\s*\([^)]*disable_functions|dl\s*\(/gi,
   },
 ];
 

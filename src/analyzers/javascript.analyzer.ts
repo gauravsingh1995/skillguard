@@ -181,6 +181,87 @@ const JS_RISK_PATTERNS: RiskPattern[] = [
     },
   },
 
+  // HIGH: Prompt Injection / LLM API Usage
+  {
+    name: 'OpenAI API',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'OpenAI API usage - potential prompt injection if using untrusted input',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      // Detect openai.chat.completions.create, openai.completions.create
+      if (node.callee?.type === 'MemberExpression') {
+        const prop = node.callee.property;
+        if (prop?.type === 'Identifier' && prop.name === 'create') {
+          let obj = node.callee.object;
+          // Check for chat.completions or completions
+          if (obj?.type === 'MemberExpression') {
+            const parentProp = obj.property;
+            if (
+              parentProp?.type === 'Identifier' &&
+              (parentProp.name === 'completions' || parentProp.name === 'chat')
+            ) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    },
+  },
+  {
+    name: 'Anthropic API',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'Anthropic Claude API usage - potential prompt injection if using untrusted input',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      // Detect anthropic.messages.create
+      if (node.callee?.type === 'MemberExpression') {
+        const prop = node.callee.property;
+        if (prop?.type === 'Identifier' && prop.name === 'create') {
+          let obj = node.callee.object;
+          if (obj?.type === 'MemberExpression') {
+            const parentProp = obj.property;
+            if (parentProp?.type === 'Identifier' && parentProp.name === 'messages') {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    },
+  },
+  {
+    name: 'Google AI API',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'Google AI API usage - potential prompt injection if using untrusted input',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      // Detect genAI.generateContent, model.generateContent
+      return isCallToFunction(node, ['generateContent', 'generateText']);
+    },
+  },
+  {
+    name: 'LLM API generic',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'Generic LLM API call - potential prompt injection if using untrusted input',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      // Detect common LLM method names
+      return isCallToFunction(node, [
+        'sendMessage',
+        'chat',
+        'complete',
+        'prompt',
+        'generate',
+        'inference',
+      ]);
+    },
+  },
+
   // LOW: Environment Variable Access
   {
     name: 'process.env',
@@ -217,6 +298,292 @@ const JS_RISK_PATTERNS: RiskPattern[] = [
         }
       }
       return false;
+    },
+  },
+
+  // ===== CREDENTIAL THEFT PATTERNS =====
+  
+  // CRITICAL: Hardcoded credentials in code
+  {
+    name: 'Hardcoded Secret',
+    severity: 'critical',
+    category: 'Credential Theft',
+    description: 'Hardcoded API key or secret detected - credential theft risk',
+    nodeType: 'VariableDeclarator',
+    matcher: (node: any) => {
+      if (node.init?.type === 'Literal' && typeof node.init.value === 'string') {
+        const val = node.init.value;
+        const name = node.id?.name?.toUpperCase() || '';
+        const sensitiveNames = ['KEY', 'SECRET', 'TOKEN', 'PASSWORD', 'API', 'AUTH', 'CREDENTIAL'];
+        const hasSecretName = sensitiveNames.some(s => name.includes(s));
+        const looksLikeKey = /^[a-zA-Z0-9_-]{20,}$/.test(val) || /^sk-[a-zA-Z0-9]{20,}$/.test(val);
+        return hasSecretName && (val.length > 8 || looksLikeKey);
+      }
+      return false;
+    },
+  },
+  {
+    name: 'SSH Key Access',
+    severity: 'high',
+    category: 'Credential Theft',
+    description: 'Accesses SSH keys - potential credential theft',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      if (isCallToMemberFunction(node, 'fs', ['readFile', 'readFileSync'])) {
+        const arg = node.arguments?.[0];
+        if (arg?.type === 'Literal' && typeof arg.value === 'string') {
+          const path = arg.value.toLowerCase();
+          return path.includes('.ssh') || path.includes('id_rsa') || path.includes('id_ed25519') || path.includes('id_dsa');
+        }
+        if (arg?.type === 'TemplateLiteral') {
+          const str = arg.quasis?.map((q: any) => q.value.raw).join('') || '';
+          return str.includes('.ssh') || str.includes('id_rsa');
+        }
+      }
+      return false;
+    },
+  },
+  {
+    name: 'Keychain Access',
+    severity: 'high',
+    category: 'Credential Theft',
+    description: 'Accesses system keychain or credential store',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      return isCallToFunction(node, ['getPassword', 'findCredentials', 'findPassword', 'getGenericPassword', 'getInternetPassword']);
+    },
+  },
+  {
+    name: 'Config File Access',
+    severity: 'medium',
+    category: 'Credential Theft',
+    description: 'Accesses configuration files that may contain credentials',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      if (isCallToMemberFunction(node, 'fs', ['readFile', 'readFileSync'])) {
+        const arg = node.arguments?.[0];
+        if (arg?.type === 'Literal' && typeof arg.value === 'string') {
+          const path = arg.value.toLowerCase();
+          return path.includes('.env') || path.includes('credentials') || path.includes('.npmrc') || path.includes('.netrc') || path.includes('.aws');
+        }
+      }
+      return false;
+    },
+  },
+
+  // ===== CODE INJECTION PATTERNS =====
+  
+  {
+    name: 'Template Injection',
+    severity: 'critical',
+    category: 'Code Injection',
+    description: 'Server-side template injection (SSTI) risk',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      return isCallToFunction(node, ['compile', 'render', 'renderString', 'renderFile']);
+    },
+  },
+  {
+    name: 'vm Module',
+    severity: 'critical',
+    category: 'Code Injection',
+    description: 'Node.js VM module - can execute arbitrary code',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      return isCallToMemberFunction(node, 'vm', ['runInContext', 'runInNewContext', 'runInThisContext', 'createScript', 'compileFunction']);
+    },
+  },
+  {
+    name: 'setTimeout/setInterval with string',
+    severity: 'high',
+    category: 'Code Injection',
+    description: 'Timer with string argument - implicit eval',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      if (node.callee?.type === 'Identifier' && ['setTimeout', 'setInterval'].includes(node.callee.name)) {
+        const arg = node.arguments?.[0];
+        return arg?.type === 'Literal' && typeof arg.value === 'string';
+      }
+      return false;
+    },
+  },
+  {
+    name: 'import() dynamic',
+    severity: 'high',
+    category: 'Code Injection',
+    description: 'Dynamic import - potential code injection if input is untrusted',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      return node.callee?.type === 'Import';
+    },
+  },
+
+  // ===== PROMPT MANIPULATION PATTERNS =====
+  
+  {
+    name: 'System Prompt Construction',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'Dynamic system prompt construction - potential prompt injection',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      if (node.arguments?.length > 0) {
+        const hasRole = node.arguments.some((arg: any) => {
+          if (arg?.type === 'ObjectExpression') {
+            return arg.properties?.some((p: any) => {
+              const key = p.key?.name || p.key?.value;
+              return key === 'role' || key === 'system' || key === 'systemPrompt';
+            });
+          }
+          return false;
+        });
+        if (hasRole) return true;
+      }
+      return false;
+    },
+  },
+  {
+    name: 'Prompt Template Variable',
+    severity: 'medium',
+    category: 'Prompt Injection',
+    description: 'User input in prompt template - validate input sanitization',
+    nodeType: 'TemplateLiteral',
+    matcher: (node: any) => {
+      const raw = node.quasis?.map((q: any) => q.value.raw).join('') || '';
+      return raw.includes('prompt') || raw.includes('instruction') || raw.includes('system');
+    },
+  },
+
+  // ===== DATA EXFILTRATION PATTERNS =====
+  
+  {
+    name: 'DNS Lookup',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'DNS lookup - potential DNS exfiltration',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      return isCallToMemberFunction(node, 'dns', ['lookup', 'resolve', 'resolve4', 'resolve6', 'resolveTxt']);
+    },
+  },
+  {
+    name: 'Clipboard Access',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'Clipboard access - potential data theft',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      return isCallToMemberFunction(node, 'clipboard', ['readText', 'writeText', 'read', 'write']) ||
+             isCallToFunction(node, ['readClipboard', 'writeClipboard', 'getClipboard', 'setClipboard']);
+    },
+  },
+  {
+    name: 'Screenshot Capture',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'Screen capture - potential visual data theft',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      return isCallToFunction(node, ['screenshot', 'captureScreen', 'takeScreenshot', 'getDisplayMedia', 'desktopCapturer']);
+    },
+  },
+  {
+    name: 'Keylogger Pattern',
+    severity: 'critical',
+    category: 'Data Exfiltration',
+    description: 'Keyboard event capture - potential keylogger',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      if (node.callee?.type === 'MemberExpression') {
+        const method = node.callee.property?.name;
+        if (method === 'addEventListener') {
+          const arg = node.arguments?.[0];
+          if (arg?.type === 'Literal') {
+            const event = String(arg.value).toLowerCase();
+            return event === 'keydown' || event === 'keyup' || event === 'keypress';
+          }
+        }
+      }
+      return false;
+    },
+  },
+  {
+    name: 'FormData Upload',
+    severity: 'medium',
+    category: 'Data Exfiltration',
+    description: 'FormData creation - potential file/data upload',
+    nodeType: 'NewExpression',
+    matcher: (node: any) => {
+      return node.callee?.type === 'Identifier' && node.callee.name === 'FormData';
+    },
+  },
+
+  // ===== EVASION TECHNIQUE PATTERNS =====
+  
+  {
+    name: 'Base64 Decode Execution',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Base64 decoding with execution - obfuscation technique',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      return isCallToFunction(node, ['atob', 'btoa']) ||
+             isCallToMemberFunction(node, 'Buffer', ['from']);
+    },
+  },
+  {
+    name: 'Time-Delayed Execution',
+    severity: 'medium',
+    category: 'Evasion Technique',
+    description: 'Delayed execution - potential sandbox evasion',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      if (node.callee?.type === 'Identifier' && ['setTimeout', 'setInterval'].includes(node.callee.name)) {
+        const delay = node.arguments?.[1];
+        if (delay?.type === 'Literal' && typeof delay.value === 'number') {
+          return delay.value > 30000;
+        }
+      }
+      return false;
+    },
+  },
+  {
+    name: 'Debugger Detection',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Anti-debugging technique detected',
+    nodeType: 'DebuggerStatement',
+    matcher: () => true,
+  },
+  {
+    name: 'Process Detection',
+    severity: 'medium',
+    category: 'Evasion Technique',
+    description: 'Process enumeration - potential sandbox detection',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      return isCallToFunction(node, ['getProcesses', 'findProcess', 'psList']);
+    },
+  },
+  {
+    name: 'String Obfuscation',
+    severity: 'medium',
+    category: 'Evasion Technique',
+    description: 'String encoding/obfuscation - review for malicious intent',
+    nodeType: 'CallExpression',
+    matcher: (node: any) => {
+      return isCallToFunction(node, ['charCodeAt', 'fromCharCode', 'encodeURIComponent', 'decodeURIComponent']);
+    },
+  },
+  {
+    name: 'Prototype Pollution',
+    severity: 'critical',
+    category: 'Evasion Technique',
+    description: 'Potential prototype pollution - security bypass risk',
+    nodeType: 'MemberExpression',
+    matcher: (node: any) => {
+      const prop = node.property?.name || node.property?.value;
+      return prop === '__proto__' || prop === 'prototype' || prop === 'constructor';
     },
   },
 ];
@@ -392,6 +759,75 @@ export class JavaScriptAnalyzer implements LanguageAnalyzer {
       MemberExpression(node: any) {
         for (const pattern of JS_RISK_PATTERNS) {
           if (pattern.nodeType === 'MemberExpression' && pattern.matcher(node)) {
+            if (!configLoader.isPatternEnabled(pattern.name, language)) continue;
+            const severity = configLoader.getPatternSeverity(
+              pattern.name,
+              pattern.severity,
+              language,
+            );
+
+            findings.push({
+              file: filePath,
+              line: node.loc?.start?.line || 0,
+              column: node.loc?.start?.column || 0,
+              severity,
+              category: pattern.category,
+              description: pattern.description,
+              codeSnippet: getCodeSnippet(source, node.loc?.start?.line || 0),
+              language,
+            });
+          }
+        }
+      },
+      VariableDeclarator(node: any) {
+        for (const pattern of JS_RISK_PATTERNS) {
+          if (pattern.nodeType === 'VariableDeclarator' && pattern.matcher(node)) {
+            if (!configLoader.isPatternEnabled(pattern.name, language)) continue;
+            const severity = configLoader.getPatternSeverity(
+              pattern.name,
+              pattern.severity,
+              language,
+            );
+
+            findings.push({
+              file: filePath,
+              line: node.loc?.start?.line || 0,
+              column: node.loc?.start?.column || 0,
+              severity,
+              category: pattern.category,
+              description: pattern.description,
+              codeSnippet: getCodeSnippet(source, node.loc?.start?.line || 0),
+              language,
+            });
+          }
+        }
+      },
+      TemplateLiteral(node: any) {
+        for (const pattern of JS_RISK_PATTERNS) {
+          if (pattern.nodeType === 'TemplateLiteral' && pattern.matcher(node)) {
+            if (!configLoader.isPatternEnabled(pattern.name, language)) continue;
+            const severity = configLoader.getPatternSeverity(
+              pattern.name,
+              pattern.severity,
+              language,
+            );
+
+            findings.push({
+              file: filePath,
+              line: node.loc?.start?.line || 0,
+              column: node.loc?.start?.column || 0,
+              severity,
+              category: pattern.category,
+              description: pattern.description,
+              codeSnippet: getCodeSnippet(source, node.loc?.start?.line || 0),
+              language,
+            });
+          }
+        }
+      },
+      DebuggerStatement(node: any) {
+        for (const pattern of JS_RISK_PATTERNS) {
+          if (pattern.nodeType === 'DebuggerStatement' && pattern.matcher(node)) {
             if (!configLoader.isPatternEnabled(pattern.name, language)) continue;
             const severity = configLoader.getPatternSeverity(
               pattern.name,

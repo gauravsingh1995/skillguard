@@ -235,36 +235,57 @@ Prioritize detecting data exfiltration:
 
 ## Pattern Overrides
 
+### Threat Categories (v2.0)
+
+SkillGuard v2.0 detects 274+ patterns across 5 major threat categories:
+
+| Category | Examples | Default Severity |
+|----------|----------|------------------|
+| **Credential Theft** | Hardcoded secrets, SSH keys, keychains, AWS creds | Critical |
+| **Code Injection** | eval, SSTI, YAML load, reflection | Critical |
+| **Prompt Injection** | LLM API misuse, system prompts | High |
+| **Data Exfiltration** | DNS tunneling, clipboard, keyloggers | Critical |
+| **Evasion Techniques** | Anti-debug, sandbox detection, obfuscation | High |
+
 ### Common Patterns by Language
 
-#### JavaScript/TypeScript
+#### JavaScript/TypeScript (43 patterns)
 - `exec`, `spawn` - Shell execution
-- `eval` - Code injection
+- `eval`, `Function`, `vm.runInNewContext` - Code injection
 - `fetch`, `axios` - Network access
 - `fs.writeFile` - File system write
-- `process.env` - Environment access
+- **NEW**: `openai`, `anthropic` - Prompt injection
+- **NEW**: `dns.lookup`, `clipboard`, `nativeImage.captureScreen` - Data exfiltration
+- **NEW**: `atob(...eval)`, `debugger`, `prototype.constructor` - Evasion
 
-#### Python
+#### Python (38 patterns)
 - `os.system`, `subprocess.call` - Shell execution
-- `eval`, `exec` - Code injection
+- `eval`, `exec`, `yaml.load()`, `Template()` - Code injection
 - `requests`, `urllib` - Network access
-- `open` - File operations
 - `pickle.loads` - Deserialization
+- **NEW**: `keyring`, `aws_access_key` - Credential theft
+- **NEW**: `openai`, `langchain`, `f"...{user_input}..."` - Prompt injection
+- **NEW**: `pyperclip`, `ImageGrab`, `pynput.keyboard` - Data exfiltration
+- **NEW**: `base64.b64decode(...exec)`, `getattr` chains - Evasion
 
-#### Java
+#### Java (33 patterns)
 - `Runtime.exec`, `ProcessBuilder` - Shell execution
-- `Class.forName` - Reflection
+- `Class.forName`, `SpEL`, `OGNL` - Reflection/Injection
 - `InitialContext.lookup` - JNDI (Log4Shell)
 - `ObjectInputStream` - Deserialization
+- **NEW**: `KeyStore`, `BasicAWSCredentials` - Credential theft
+- **NEW**: `Robot.createScreenCapture`, `KeyListener` - Data exfiltration
 
-#### Go
+#### Go (30 patterns)
 - `exec.Command` - Shell execution
-- `unsafe` - Unsafe operations
+- `unsafe`, `plugin.Open()` - Unsafe operations
 - `os.WriteFile` - File operations
 - `http.Get` - Network access
+- **NEW**: `clipboard`, `screenshot`, `keyboard.GetKeys` - Data exfiltration
+- **NEW**: `antidebug`, `sandbox detection` - Evasion
 
-#### Others
-See `.skillguardrc.example.json` for complete pattern lists for Ruby, PHP, C/C++, and Rust.
+#### Ruby/PHP/C++/Rust
+See the [SECURITY_COVERAGE_REPORT.md](SECURITY_COVERAGE_REPORT.md) for complete pattern lists with 30+ patterns each.
 
 ## Language-Specific Settings
 

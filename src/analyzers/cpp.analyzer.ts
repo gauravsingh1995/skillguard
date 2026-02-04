@@ -97,6 +97,15 @@ const CPP_PATTERNS: CppPattern[] = [
     pattern: /\b(remove|unlink)\s*\(/g,
   },
 
+  // HIGH: Prompt Injection / LLM API Usage
+  {
+    name: 'LLM API generic',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'Generic LLM API call - potential prompt injection if using untrusted input',
+    pattern: /(generate_text|generate_content|send_message|prompt_model|llm_inference|openai_)/g,
+  },
+
   // MEDIUM: Format Strings & Network
   {
     name: 'printf with variable',
@@ -127,6 +136,168 @@ const CPP_PATTERNS: CppPattern[] = [
     category: 'Environment Access',
     description: 'Accesses environment variables - potential sensitive data exposure',
     pattern: /\bgetenv\s*\(/g,
+  },
+
+  // ===== CREDENTIAL THEFT PATTERNS =====
+  
+  {
+    name: 'Hardcoded Secret',
+    severity: 'critical',
+    category: 'Credential Theft',
+    description: 'Hardcoded API key or password detected',
+    pattern: /(?:api_key|api_secret|password|secret_key|auth_token|access_token)\s*=\s*"[^"]{8,}"/gi,
+  },
+  {
+    name: 'SSH Key Access',
+    severity: 'high',
+    category: 'Credential Theft',
+    description: 'Accesses SSH keys - potential credential theft',
+    pattern: /fopen\s*\([^)]*(?:\.ssh|id_rsa|id_ed25519)/gi,
+  },
+  {
+    name: 'Registry Credentials',
+    severity: 'high',
+    category: 'Credential Theft',
+    description: 'Windows registry credential access',
+    pattern: /RegOpenKeyEx|RegQueryValueEx|HKEY.*Password|HKEY.*Credential/gi,
+  },
+  {
+    name: 'Config File Access',
+    severity: 'medium',
+    category: 'Credential Theft',
+    description: 'Accesses configuration files',
+    pattern: /fopen\s*\([^)]*(?:\.env|config|credentials|passwd)/gi,
+  },
+
+  // ===== CODE INJECTION PATTERNS =====
+  
+  {
+    name: 'dlopen',
+    severity: 'critical',
+    category: 'Code Injection',
+    description: 'Dynamic library loading - potential code injection',
+    pattern: /\bdlopen\s*\(|\bLoadLibrary[AW]?\s*\(/gi,
+  },
+  {
+    name: 'Shell Pipe',
+    severity: 'high',
+    category: 'Code Injection',
+    description: 'Shell pipe command - potential injection',
+    pattern: /_popen\s*\(|_wpopen\s*\(/g,
+  },
+  {
+    name: 'WinExec',
+    severity: 'critical',
+    category: 'Code Injection',
+    description: 'Windows execution functions',
+    pattern: /\bWinExec\s*\(|\bShellExecute[AW]?\s*\(/gi,
+  },
+
+  // ===== PROMPT MANIPULATION PATTERNS =====
+  
+  {
+    name: 'Sprintf Prompt',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'Format string in prompt - potential injection',
+    pattern: /sprintf\s*\([^)]*(?:prompt|message|instruction)/gi,
+  },
+  {
+    name: 'String Concat Prompt',
+    severity: 'medium',
+    category: 'Prompt Injection',
+    description: 'String concatenation in prompt - validate input',
+    pattern: /strcat\s*\([^)]*(?:prompt|message)|(?:prompt|message).*strcat/gi,
+  },
+
+  // ===== DATA EXFILTRATION PATTERNS =====
+  
+  {
+    name: 'DNS Query',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'DNS resolution - potential exfiltration',
+    pattern: /\bgethostbyname\s*\(|\bgetaddrinfo\s*\(|DnsQuery/gi,
+  },
+  {
+    name: 'Clipboard Windows',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'Windows clipboard access - potential data theft',
+    pattern: /OpenClipboard|GetClipboardData|SetClipboardData/gi,
+  },
+  {
+    name: 'Screenshot Windows',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'Screen capture - potential data theft',
+    pattern: /BitBlt.*GetDC|CreateCompatibleDC.*Desktop|GetWindowDC/gi,
+  },
+  {
+    name: 'Keylogger Hook',
+    severity: 'critical',
+    category: 'Data Exfiltration',
+    description: 'Keyboard hook - potential keylogger',
+    pattern: /SetWindowsHookEx.*WH_KEYBOARD|GetAsyncKeyState|GetKeyState/gi,
+  },
+  {
+    name: 'Send Data',
+    severity: 'medium',
+    category: 'Data Exfiltration',
+    description: 'Network send - potential exfiltration',
+    pattern: /\bsend\s*\(|\bsendto\s*\(|WinHttpSendRequest/gi,
+  },
+
+  // ===== EVASION TECHNIQUE PATTERNS =====
+  
+  {
+    name: 'XOR Obfuscation',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'XOR operations - potential string obfuscation',
+    pattern: /for\s*\([^)]*\)\s*\{[^}]*\^\s*0x[0-9a-f]+/gi,
+  },
+  {
+    name: 'Anti-Debug Windows',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Anti-debugging techniques',
+    pattern: /IsDebuggerPresent|CheckRemoteDebuggerPresent|NtQueryInformationProcess/gi,
+  },
+  {
+    name: 'Anti-Debug Linux',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Linux anti-debugging',
+    pattern: /ptrace\s*\(\s*PTRACE_TRACEME/gi,
+  },
+  {
+    name: 'Sandbox Detection',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'VM/sandbox detection patterns',
+    pattern: /(?:vmware|virtualbox|vbox|qemu|sandbox|wine)/gi,
+  },
+  {
+    name: 'Process Injection',
+    severity: 'critical',
+    category: 'Evasion Technique',
+    description: 'Process injection patterns',
+    pattern: /VirtualAllocEx|WriteProcessMemory|CreateRemoteThread|NtCreateThreadEx/gi,
+  },
+  {
+    name: 'Process Hollowing',
+    severity: 'critical',
+    category: 'Evasion Technique',
+    description: 'Process hollowing technique',
+    pattern: /NtUnmapViewOfSection|ZwUnmapViewOfSection|NtResumeThread/gi,
+  },
+  {
+    name: 'Self-Delete',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Self-deletion capability',
+    pattern: /MoveFileEx.*MOVEFILE_DELAY_UNTIL_REBOOT|DeleteFile.*argv\[0\]/gi,
   },
 ];
 

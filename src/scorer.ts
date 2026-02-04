@@ -12,6 +12,10 @@ import { getConfigLoader } from './config';
 const DEFAULT_CATEGORY_WEIGHTS: Record<string, number> = {
   'Shell Execution': 50,
   'Code Injection': 50,
+  'Prompt Injection': 45,
+  'Credential Theft': 45,
+  'Data Exfiltration': 40,
+  'Evasion Technique': 40,
   'File System Write': 30,
   'File System Delete': 30,
   'File System Permissions': 25,
@@ -23,6 +27,17 @@ const DEFAULT_CATEGORY_WEIGHTS: Record<string, number> = {
   'Unsafe Operations': 40,
   Reflection: 30,
   'Dynamic Method Call': 30,
+  'File Inclusion': 35,
+  'JNDI Injection': 50,
+  'SQL Operations': 25,
+  'Server Variables': 15,
+  'Format String': 35,
+  'Type Casting': 35,
+  'Unsafe Pointers': 35,
+  'Unsafe Code': 40,
+  'File System Modification': 30,
+  'Dynamic Import': 30,
+  'File Operations': 25,
 };
 
 /**

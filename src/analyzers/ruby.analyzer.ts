@@ -104,6 +104,29 @@ const RUBY_PATTERNS: RubyPattern[] = [
     pattern: /Marshal\.load\s*\(/g,
   },
 
+  // HIGH: Prompt Injection / LLM API Usage
+  {
+    name: 'OpenAI API',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'OpenAI API usage - potential prompt injection if using untrusted input',
+    pattern: /OpenAI::Client|\.chat\(|\.completions\(/g,
+  },
+  {
+    name: 'LangChain Ruby',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'LangChain usage - potential prompt injection if using untrusted input',
+    pattern: /Langchain::|\.call\(|\.predict\(/g,
+  },
+  {
+    name: 'LLM API generic',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'Generic LLM API call - potential prompt injection if using untrusted input',
+    pattern: /(generate_text|generate_content|send_message|prompt_model|llm_inference)/g,
+  },
+
   // MEDIUM: Network Access
   {
     name: 'Net::HTTP',
@@ -134,6 +157,154 @@ const RUBY_PATTERNS: RubyPattern[] = [
     category: 'Environment Access',
     description: 'Accesses environment variables - potential sensitive data exposure',
     pattern: /ENV\s*\[\s*['"][A-Z_]*(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL|AUTH|PRIVATE)/gi,
+  },
+
+  // ===== CREDENTIAL THEFT PATTERNS =====
+  
+  {
+    name: 'Hardcoded Secret',
+    severity: 'critical',
+    category: 'Credential Theft',
+    description: 'Hardcoded API key or password detected',
+    pattern: /(?:api_key|api_secret|password|secret_key|auth_token|access_token)\s*=\s*['"][^'"]{8,}['"]/gi,
+  },
+  {
+    name: 'SSH Key Access',
+    severity: 'high',
+    category: 'Credential Theft',
+    description: 'Accesses SSH keys - potential credential theft',
+    pattern: /File\.(read|open)\s*\([^)]*(?:\.ssh|id_rsa|id_ed25519)/gi,
+  },
+  {
+    name: 'Rails Credentials',
+    severity: 'high',
+    category: 'Credential Theft',
+    description: 'Rails credentials access',
+    pattern: /Rails\.application\.credentials|Rails\.application\.secrets/gi,
+  },
+  {
+    name: 'Config File Access',
+    severity: 'medium',
+    category: 'Credential Theft',
+    description: 'Accesses configuration files',
+    pattern: /File\.read\s*\([^)]*(?:\.env|credentials|secrets\.yml|database\.yml)/gi,
+  },
+
+  // ===== CODE INJECTION PATTERNS =====
+  
+  {
+    name: 'module_eval',
+    severity: 'critical',
+    category: 'Code Injection',
+    description: 'Module evaluation - potential injection',
+    pattern: /\.module_eval\s*\(/g,
+  },
+  {
+    name: 'define_method',
+    severity: 'high',
+    category: 'Code Injection',
+    description: 'Dynamic method definition',
+    pattern: /define_method\s*\(/g,
+  },
+  {
+    name: 'ERB Injection',
+    severity: 'critical',
+    category: 'Code Injection',
+    description: 'ERB template injection risk',
+    pattern: /ERB\.new\s*\(|\.result\s*\(binding\)/gi,
+  },
+  {
+    name: 'Constantize',
+    severity: 'high',
+    category: 'Code Injection',
+    description: 'String to constant - potential injection',
+    pattern: /\.constantize\s*$|\.safe_constantize/gi,
+  },
+
+  // ===== PROMPT MANIPULATION PATTERNS =====
+  
+  {
+    name: 'String Interpolation Prompt',
+    severity: 'high',
+    category: 'Prompt Injection',
+    description: 'Variable in prompt string - potential injection',
+    pattern: /(?:prompt|message|system_prompt)\s*=\s*"[^"]*#\{/gi,
+  },
+  {
+    name: 'Prompt Concatenation',
+    severity: 'medium',
+    category: 'Prompt Injection',
+    description: 'String concatenation in prompt - validate input',
+    pattern: /(?:prompt|message)\s*(?:<<|\+=|<<)|(?:prompt|message)\s*\+\s*\w/gi,
+  },
+
+  // ===== DATA EXFILTRATION PATTERNS =====
+  
+  {
+    name: 'DNS Lookup',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'DNS resolution - potential exfiltration',
+    pattern: /Resolv\.getaddress|Socket\.gethostbyname|DNS\.resolve/gi,
+  },
+  {
+    name: 'Clipboard Access',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'Clipboard access - potential data theft',
+    pattern: /Clipboard\.|pbcopy|pbpaste|xclip|xsel/gi,
+  },
+  {
+    name: 'Screenshot',
+    severity: 'high',
+    category: 'Data Exfiltration',
+    description: 'Screen capture - potential data theft',
+    pattern: /screenshot|screencapture|import.*png/gi,
+  },
+  {
+    name: 'Email Send',
+    severity: 'medium',
+    category: 'Data Exfiltration',
+    description: 'Email sending - potential exfiltration',
+    pattern: /ActionMailer|Mail\.deliver|Net::SMTP/gi,
+  },
+
+  // ===== EVASION TECHNIQUE PATTERNS =====
+  
+  {
+    name: 'Base64 Eval',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Base64 decode with eval - obfuscation',
+    pattern: /eval\s*\(\s*Base64\.decode|Base64\.decode.*eval/gi,
+  },
+  {
+    name: 'Pack Unpack',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Binary packing - potential obfuscation',
+    pattern: /\.pack\s*\(['""]H|\.unpack\s*\(['""]H/gi,
+  },
+  {
+    name: 'Load',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Dynamic code loading',
+    pattern: /\bload\s*\(|Kernel\.load/gi,
+  },
+  {
+    name: 'Sandbox Detection',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'VM/sandbox detection patterns',
+    pattern: /(?:vmware|virtualbox|vbox|qemu|sandbox)/gi,
+  },
+  {
+    name: 'Anti-Debug',
+    severity: 'high',
+    category: 'Evasion Technique',
+    description: 'Anti-debugging technique detected',
+    pattern: /TracePoint|set_trace_func|binding\.pry/gi,
   },
 ];
 
