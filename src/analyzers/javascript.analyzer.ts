@@ -337,7 +337,8 @@ export class JavaScriptAnalyzer implements LanguageAnalyzer {
       return findings;
     }
 
-    const language: Language = filePath.endsWith('.ts') || filePath.endsWith('.tsx') ? 'typescript' : 'javascript';
+    const language: Language =
+      filePath.endsWith('.ts') || filePath.endsWith('.tsx') ? 'typescript' : 'javascript';
     const configLoader = getConfigLoader();
 
     // Walk the AST and check each pattern
@@ -346,7 +347,11 @@ export class JavaScriptAnalyzer implements LanguageAnalyzer {
         for (const pattern of JS_RISK_PATTERNS) {
           if (pattern.nodeType === 'CallExpression' && pattern.matcher(node)) {
             if (!configLoader.isPatternEnabled(pattern.name, language)) continue;
-            const severity = configLoader.getPatternSeverity(pattern.name, pattern.severity, language);
+            const severity = configLoader.getPatternSeverity(
+              pattern.name,
+              pattern.severity,
+              language,
+            );
 
             findings.push({
               file: filePath,
@@ -365,7 +370,11 @@ export class JavaScriptAnalyzer implements LanguageAnalyzer {
         for (const pattern of JS_RISK_PATTERNS) {
           if (pattern.nodeType === 'NewExpression' && pattern.matcher(node)) {
             if (!configLoader.isPatternEnabled(pattern.name, language)) continue;
-            const severity = configLoader.getPatternSeverity(pattern.name, pattern.severity, language);
+            const severity = configLoader.getPatternSeverity(
+              pattern.name,
+              pattern.severity,
+              language,
+            );
 
             findings.push({
               file: filePath,
@@ -384,7 +393,11 @@ export class JavaScriptAnalyzer implements LanguageAnalyzer {
         for (const pattern of JS_RISK_PATTERNS) {
           if (pattern.nodeType === 'MemberExpression' && pattern.matcher(node)) {
             if (!configLoader.isPatternEnabled(pattern.name, language)) continue;
-            const severity = configLoader.getPatternSeverity(pattern.name, pattern.severity, language);
+            const severity = configLoader.getPatternSeverity(
+              pattern.name,
+              pattern.severity,
+              language,
+            );
 
             findings.push({
               file: filePath,

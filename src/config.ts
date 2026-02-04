@@ -156,7 +156,10 @@ export class ConfigLoader {
   /**
    * Merge user config with default config
    */
-  private mergeConfig(defaultConfig: SkillGuardConfig, userConfig: Partial<SkillGuardConfig>): SkillGuardConfig {
+  private mergeConfig(
+    defaultConfig: SkillGuardConfig,
+    userConfig: Partial<SkillGuardConfig>,
+  ): SkillGuardConfig {
     return {
       riskThresholds: {
         ...defaultConfig.riskThresholds,
@@ -197,12 +200,12 @@ export class ConfigLoader {
   getPatternSeverity(
     patternName: string,
     defaultSeverity: RiskSeverity,
-    language?: Language
+    language?: Language,
   ): RiskSeverity {
     // Check language-specific overrides first
     if (language && this.config.languages?.[language]?.patternOverrides) {
       const languageOverride = this.config.languages[language].patternOverrides?.find(
-        (o) => o.pattern === patternName
+        (o) => o.pattern === patternName,
       );
       if (languageOverride) {
         return languageOverride.severity;
@@ -210,7 +213,9 @@ export class ConfigLoader {
     }
 
     // Check global overrides
-    const globalOverride = this.config.globalPatternOverrides?.find((o) => o.pattern === patternName);
+    const globalOverride = this.config.globalPatternOverrides?.find(
+      (o) => o.pattern === patternName,
+    );
     if (globalOverride) {
       return globalOverride.severity;
     }
@@ -225,7 +230,7 @@ export class ConfigLoader {
     // Check language-specific overrides first
     if (language && this.config.languages?.[language]?.patternOverrides) {
       const languageOverride = this.config.languages[language].patternOverrides?.find(
-        (o) => o.pattern === patternName
+        (o) => o.pattern === patternName,
       );
       if (languageOverride && languageOverride.enabled !== undefined) {
         return languageOverride.enabled;
@@ -233,7 +238,9 @@ export class ConfigLoader {
     }
 
     // Check global overrides
-    const globalOverride = this.config.globalPatternOverrides?.find((o) => o.pattern === patternName);
+    const globalOverride = this.config.globalPatternOverrides?.find(
+      (o) => o.pattern === patternName,
+    );
     if (globalOverride && globalOverride.enabled !== undefined) {
       return globalOverride.enabled;
     }
@@ -252,7 +259,9 @@ export class ConfigLoader {
    * Get severity weight
    */
   getSeverityWeight(severity: RiskSeverity): number {
-    return this.config.severityWeights?.[severity] ?? DEFAULT_CONFIG.severityWeights![severity] ?? 10;
+    return (
+      this.config.severityWeights?.[severity] ?? DEFAULT_CONFIG.severityWeights![severity] ?? 10
+    );
   }
 
   /**

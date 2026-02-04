@@ -68,7 +68,7 @@ export async function analyzeFile(filePath: string): Promise<Finding[]> {
  * Analyze all files in a directory
  */
 export async function analyzeDirectory(
-  targetDir: string
+  targetDir: string,
 ): Promise<{ findings: Finding[]; scannedFiles: number }> {
   const files = findSourceFiles(targetDir);
   const allFindings: Finding[] = [];

@@ -3,7 +3,7 @@
  * Calculates overall risk score based on findings
  */
 
-import { Finding, DependencyFinding, ScanResult, RiskSeverity } from './types';
+import { Finding, DependencyFinding, ScanResult } from './types';
 import { getConfigLoader } from './config';
 
 /**
@@ -19,9 +19,9 @@ const DEFAULT_CATEGORY_WEIGHTS: Record<string, number> = {
   'Environment Access': 10,
   'Buffer Overflow': 50,
   'Memory Management': 30,
-  'Deserialization': 30,
+  Deserialization: 30,
   'Unsafe Operations': 40,
-  'Reflection': 30,
+  Reflection: 30,
   'Dynamic Method Call': 30,
 };
 
