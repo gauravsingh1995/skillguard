@@ -18,8 +18,7 @@
     "url": "git+https://github.com/gauravsingh1995/skillguard.git"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "bugs": {
     "url": "https://github.com/gauravsingh1995/skillguard/issues"
