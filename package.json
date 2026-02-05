@@ -1,5 +1,5 @@
 {
-  "name": "skillguard",
+  "name": "@gauravsingh1995/skillguard",
   "version": "2.0.1",
   "description": "CLI security scanner for AI Agent Skills - 274+ security patterns for credential theft, code injection, prompt injection, data exfiltration & evasion detection across 9 languages",
   "main": "dist/index.js",
