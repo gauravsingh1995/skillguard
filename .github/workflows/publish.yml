@@ -24,10 +24,18 @@ jobs:
 
       - run: npm run test
 
+      - name: Remove placeholder token for OIDC Trusted Publishing
+        run: |
+          echo "Removing placeholder _authToken from .npmrc to enable OIDC Trusted Publishing..."
+          sed -i 's|//registry.npmjs.org/:_authToken=.*||' "$NPM_CONFIG_USERCONFIG"
+          echo "Current .npmrc after cleanup:"
+          cat "$NPM_CONFIG_USERCONFIG"
+
       - name: Publish to npm
         run: npm publish --provenance --access public
         env:
           npm_config_loglevel: http
+          NODE_AUTH_TOKEN: ''
 
       - name: Show npm debug log on failure
         if: failure()
