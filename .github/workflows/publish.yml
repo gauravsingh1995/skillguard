@@ -16,7 +16,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-          registry-url: 'https://registry.npmjs.org'
+          # No registry-url — prevents setup-node from injecting
+          # NODE_AUTH_TOKEN=XXXXX-XXXXX-XXXXX-XXXXX placeholder, which
+          # would block npm OIDC Trusted Publishing
 
       - run: npm ci
 
@@ -24,16 +26,4 @@ jobs:
 
       - run: npm run test
 
-      - name: Debug environment
-        run: |
-          echo "npm version: $(npm --version)"
-          echo "node version: $(node --version)"
-          echo "OIDC URL available: $([[ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ]] && echo 'yes' || echo 'no')"
-          echo "OIDC Token available: $([[ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]] && echo 'yes' || echo 'no')"
-          echo "--- .npmrc contents ---"
-          cat ~/.npmrc 2>/dev/null || echo "(no .npmrc found)"
-
-      - name: Clear auth token to allow OIDC Trusted Publishing
-        run: npm config delete //registry.npmjs.org/:_authToken
-
-      - run: npm publish --provenance --access public --foreground-scripts
+      - run: npm publish --provenance --access public
