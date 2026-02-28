@@ -16,11 +16,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
 
       - run: npm ci
 
       - run: npm run build
 
       - run: npm run test
+
+      - name: Clear auth token to allow OIDC Trusted Publishing
+        run: npm config delete //registry.npmjs.org/:_authToken
 
       - run: npm publish --provenance --access public
