@@ -16,9 +16,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-          # No registry-url — prevents setup-node from injecting
-          # NODE_AUTH_TOKEN=XXXXX-XXXXX-XXXXX-XXXXX placeholder, which
-          # would block npm OIDC Trusted Publishing
+          registry-url: 'https://registry.npmjs.org'
 
       - run: npm ci
 
